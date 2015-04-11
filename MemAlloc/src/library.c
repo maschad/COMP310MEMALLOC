@@ -40,6 +40,7 @@ blocks *find_free_block(blocks **last,int size){
 	return current;
 }
 
+// to search for free space
 blocks *request_space(blocks *last, int size){
 
 	blocks *blk;
@@ -65,19 +66,20 @@ blocks *request_space(blocks *last, int size){
 	  return blk;
 }
 
+// allocate memory
 void *my_malloc(int size){
 
 	blocks *free;//list of free blocks
 
 	if(size <=0){ // requesting no space?
-		return NULL;
+		return NULL; //TODO: set error
 	}
 
 	if(!global_base){
 
 		free = request_space(NULL,size);
 		if(!free){ // unable to allocate space
-			return NULL;
+			return NULL;//TODO: set error
 		}
 		global_base = free;
 	}
@@ -88,6 +90,7 @@ void *my_malloc(int size){
 		if(!free){
 			free = request_space(last,size);
 			if(!free){
+				//TODO: set error
 				return NULL; // space could not be allocated
 			}
 		}
@@ -99,4 +102,63 @@ void *my_malloc(int size){
 	}
 
 	return (free+1); // return pointer to region after the meta information of the block
+}
+
+//return the block pointer
+blocks *get_block_ptr(void *ptr){
+
+	return ptr -1;
+}
+
+void my_free(void *ptr){
+	 if (!ptr) {
+	    return;
+	  }
+	 blocks *blk = get_block_ptr(ptr);
+
+	 assert(blk == NULL);
+	 assert(blk->address == 0x77777777 || blk->address == 0x12345678);
+	 blk->inUse = false;
+	 blk->address = 0x55555555;
+
+
+}
+
+// to reset the memory
+void *calloc(size_t nelem, size_t elsize) {
+  size_t size = nelem * elsize;
+  void *ptr = malloc(size);
+  memset(ptr, 0, size);
+  return ptr;
+}
+
+// to reallocate memory
+void *realloc(void *ptr, size_t size) {
+  if (!ptr) {
+    // NULL ptr. realloc should act like malloc.
+    return my_malloc(size);
+  }
+
+  blocks *block_ptr = get_block_ptr(ptr);
+
+  if (block_ptr->length >= size) {
+    // We have enough space. Could free some once we implement split.
+    return ptr;
+  }
+
+  // Need to really realloc. Malloc new space and free old space.
+  // Then copy old data to new space.
+  void *new_ptr;
+  new_ptr = my_malloc(size);
+  if (!new_ptr) {
+    return NULL; //TODO: set err on failure.
+  }
+  memcpy(new_ptr, ptr, block_ptr->length);
+  my_free(ptr);
+  return new_ptr;
+}
+
+int main()
+{
+	return 0;
 }
