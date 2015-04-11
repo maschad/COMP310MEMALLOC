@@ -158,7 +158,12 @@ void *realloc(void *ptr, size_t size) {
   return new_ptr;
 }
 
+// for testing
 int main()
 {
+	my_malloc(20);
+	my_free(20);
+	printf("%i", &global_base);
+
 	return 0;
 }
