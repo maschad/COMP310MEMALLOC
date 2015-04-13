@@ -16,7 +16,6 @@
 typedef struct f_block{
 	int length;// length of block
 	bool inUse;// whether block is free or not
-	struct f_block *prev;// pointer to previous block
 	struct f_block *next;// pointer to next block
 	int address;//address where it located
 }blocks;
@@ -71,7 +70,7 @@ void *my_malloc(int size){
 
 	blocks *free;//list of free blocks
 
-	if(size <=0){ // requesting no space?
+	if(size <= 0){ // requesting no space?
 		return NULL; //TODO: set error
 	}
 
@@ -101,22 +100,17 @@ void *my_malloc(int size){
 		}
 	}
 
-	return (free+1); // return pointer to region after the meta information of the block
-}
-
-//return the block pointer
-blocks *get_block_ptr(void *ptr){
-
-	return ptr -1;
+	return free; // return pointer to region after the meta information of the block
 }
 
 void my_free(void *ptr){
 	 if (!ptr) {
 	    return;
 	  }
-	 blocks *blk = get_block_ptr(ptr);
 
-	 assert(blk == NULL);
+	 blocks *blk = ptr;
+
+	 assert(blk->inUse == NULL);
 	 assert(blk->address == 0x77777777 || blk->address == 0x12345678);
 	 blk->inUse = false;
 	 blk->address = 0x55555555;
@@ -124,46 +118,23 @@ void my_free(void *ptr){
 
 }
 
-// to reset the memory
-void *calloc(size_t nelem, size_t elsize) {
-  size_t size = nelem * elsize;
-  void *ptr = malloc(size);
-  memset(ptr, 0, size);
-  return ptr;
-}
-
-// to reallocate memory
-void *realloc(void *ptr, size_t size) {
-  if (!ptr) {
-    // NULL ptr. realloc should act like malloc.
-    return my_malloc(size);
-  }
-
-  blocks *block_ptr = get_block_ptr(ptr);
-
-  if (block_ptr->length >= size) {
-    // We have enough space. Could free some once we implement split.
-    return ptr;
-  }
-
-  // Need to really realloc. Malloc new space and free old space.
-  // Then copy old data to new space.
-  void *new_ptr;
-  new_ptr = my_malloc(size);
-  if (!new_ptr) {
-    return NULL; //TODO: set err on failure.
-  }
-  memcpy(new_ptr, ptr, block_ptr->length);
-  my_free(ptr);
-  return new_ptr;
-}
-
 // for testing
 int main()
 {
-	my_malloc(20);
-	my_free(20);
-	printf("%i", &global_base);
+	int *ptr_one;
+
+	ptr_one = (int *)my_malloc(sizeof(int));
+
+	if (ptr_one == 0)
+	{
+		printf("ERROR: Out of memory\n");
+		return 1;
+	}
+
+	*ptr_one = 25;
+	printf("%d\n", *ptr_one);
+
+	my_free(ptr_one);
 
 	return 0;
 }
