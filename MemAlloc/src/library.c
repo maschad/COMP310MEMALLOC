@@ -17,6 +17,7 @@ typedef struct f_block{
 	int length;// length of block
 	bool inUse;// whether block is free or not
 	struct f_block *next;// pointer to next block
+	struct f_block *prev;//pointer to previous block
 	int address;//address where it located
 }blocks;
 
@@ -25,15 +26,49 @@ extern char *my_malloc_error;
 /*global variables*/
 void *global_base = NULL;// pointer to the head
 int frag;// value representing threshold of internal fragmentation
-int newPolicy;// the memory allocation policy to be used
+int policy = 1;// the memory allocation policy to be used
+
+/*stats*/
+//total free space and largest contigous free space
+// total number of bytes allocated
+int totalBytes = 0,totalFree = 0, largestCont = 0;
+
+
+
+blocks *best_fit(blocks *current,int size){
+	int min = size;
+	blocks *minimum = NULL;
+
+	while(current->next != NULL){
+		if(current->length < min && !current->inUse){
+			min = size;
+			minimum = current;
+		}
+		current = current->next;
+	}
+
+
+	return minimum;
+}
+
+blocks *first_fit(blocks *current, int size){
+
+	while(current && !(current->inUse && current->length >= size)){
+			current = current->next;
+		}
+
+	return current;
+}
 
 blocks *find_free_block(blocks **last,int size){
 
 	blocks *current = global_base;
 
-	while(current && !(current->inUse && current->length >= size)){
-		*last = current;
-		current = current->next;
+	if(policy == 1){
+		current = first_fit(current,size);
+	}
+	else{
+		current = best_fit(current,size);
 	}
 
 	return current;
@@ -63,6 +98,11 @@ blocks *request_space(blocks *last, int size){
 	  blk->address = 0x12345678;
 
 	  return blk;
+}
+
+//set a new policy
+void my_mallop(int newPolicy){
+	policy = newPolicy;
 }
 
 // allocate memory
@@ -99,31 +139,55 @@ void *my_malloc(int size){
 			free->address = 0x77777777;
 		}
 	}
-
+	totalBytes+= size;// increment total bytes
 	return free; // return pointer to region after the meta information of the block
 }
 
 void my_free(void *ptr){
 	 if (!ptr) {
-	    return;
+	    return;//TODO: RETURN ERROR
 	  }
 
 	 blocks *blk = ptr;
 
+	 if(blk->next != NULL){
+		 if(blk->next->inUse == false ){
+			 	 blk->length += blk->next->length;//merging blocks
+		 }
+	 }
 	 assert(blk->inUse == NULL);
 	 assert(blk->address == 0x77777777 || blk->address == 0x12345678);
 	 blk->inUse = false;
 	 blk->address = 0x55555555;
 
+	 printf("\n memory freed");
+	 totalFree+= sizeof(*ptr);
+
 
 }
 
+void my_mallinfo(){
+
+	printf("\n total allocated bytes %i",totalBytes);
+	printf("\n total free  %i",totalBytes);
+	printf("\n total contiguous %i",largestCont);
+
+}
 // for testing
 int main()
 {
-	int *ptr_one;
+	int *ptr_one,newPolicy;
+	void *ptr_two;
+
+	printf("\n press 0 to use best fit policy  ");
+	scanf("%i",&newPolicy);
+
+	if(newPolicy == 0){
+		my_mallop(newPolicy);
+	}
 
 	ptr_one = (int *)my_malloc(sizeof(int));
+	ptr_two = (void *) my_malloc(400);
 
 	if (ptr_one == 0)
 	{
@@ -135,6 +199,7 @@ int main()
 	printf("%d\n", *ptr_one);
 
 	my_free(ptr_one);
+	my_free(ptr_two);
 
 	return 0;
 }
