@@ -11,13 +11,12 @@
 #include <stdio.h>
 #include <assert.h>
 
-#define BLOCK_SIZE sizeof(blocks)
+#define BLOCK__META_SIZE sizeof(blocks)
 
 typedef struct f_block{
 	int length;// length of block
 	bool inUse;// whether block is free or not
 	struct f_block *next;// pointer to next block
-	struct f_block *prev;//pointer to previous block
 	int address;//address where it located
 }blocks;
 
@@ -33,7 +32,30 @@ int policy = 1;// the memory allocation policy to be used
 // total number of bytes allocated
 int totalBytes = 0,totalFree = 0, largestCont = 0;
 
+//split blocks, returns 1 on successful split and -1 on unsuccessful split
+blocks *splitBlocks(blocks *split, int size)
+{
 
+	blocks *newBlock = NULL;
+	split = global_base;
+
+	if(split->next != NULL){
+		if(split->inUse == false){
+			if(split->length  > sizeof(size + BLOCK__META_SIZE )){
+				split->length -= sizeof(size + BLOCK__META_SIZE);
+				newBlock->next = split->next->next;
+				split->next = newBlock;
+			}
+		}
+	}
+
+	return split;
+
+}
+
+blocks *get_block_ptr(void *ptr) {
+  return (blocks*)ptr - 1;
+}
 
 blocks *best_fit(blocks *current,int size){
 	int min = size;
@@ -81,7 +103,7 @@ blocks *request_space(blocks *last, int size){
 
 	blk = sbrk(0);
 
-	void *request = sbrk(size + BLOCK_SIZE);
+	void *request = sbrk(size + BLOCK__META_SIZE);
 
 	assert((void*)blk == request);
 
@@ -135,34 +157,48 @@ void *my_malloc(int size){
 		}
 		else // free block found
 		{
+			free = splitBlocks(free,size);
 			free->inUse = true;
 			free->address = 0x77777777;
 		}
 	}
 	totalBytes+= size;// increment total bytes
-	return free; // return pointer to region after the meta information of the block
+	return (free+1); // return pointer to region after the meta information of the block
 }
 
+//to free blocks
 void my_free(void *ptr){
 	 if (!ptr) {
 	    return;//TODO: RETURN ERROR
 	  }
 
-	 blocks *blk = ptr;
+	 blocks *blk = get_block_ptr(ptr);
 
-	 if(blk->next != NULL){
-		 if(blk->next->inUse == false ){
-			 	 blk->length += blk->next->length;//merging blocks
-		 }
-	 }
+
 	 assert(blk->inUse == NULL);
 	 assert(blk->address == 0x77777777 || blk->address == 0x12345678);
 	 blk->inUse = false;
-	 blk->address = 0x55555555;
+	 blk->address = 0x55555555;// for testing
 
 	 printf("\n memory freed");
 	 totalFree+= sizeof(*ptr);
 
+	 mergeBlocks(blk);// merges the blocks
+
+}
+
+//for merging free blocks
+void mergeBlocks(blocks *merge)
+{
+	merge = global_base;//start from head
+
+	while(merge->next != NULL){
+		 if(merge->next->inUse == false && merge->inUse == false){
+			 merge->length+= merge->next->length;
+			 merge->next = merge->next->next;
+		 }
+	 }
+	largestCont+= sizeof(merge->length);
 
 }
 
@@ -200,6 +236,8 @@ int main()
 
 	my_free(ptr_one);
 	my_free(ptr_two);
+
+	my_mallinfo();
 
 	return 0;
 }
