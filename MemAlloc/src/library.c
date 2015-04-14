@@ -20,7 +20,7 @@ typedef struct f_block{
 	int address;//address where it located
 }blocks;
 
-extern char *my_malloc_error;
+extern char *my_malloc_error = "Error NULL pointer Exception, unable to allocate memory";
 
 /*global variables*/
 void *global_base = NULL;// pointer to the head
@@ -54,7 +54,7 @@ blocks *splitBlocks(blocks *split, int size)
 }
 
 blocks *get_block_ptr(void *ptr) {
-  return (blocks*)ptr - 1;
+	return (blocks*)ptr - 1;
 }
 
 blocks *best_fit(blocks *current,int size){
@@ -76,8 +76,8 @@ blocks *best_fit(blocks *current,int size){
 blocks *first_fit(blocks *current, int size){
 
 	while(current && !(current->inUse && current->length >= size)){
-			current = current->next;
-		}
+		current = current->next;
+	}
 
 	return current;
 }
@@ -108,18 +108,18 @@ blocks *request_space(blocks *last, int size){
 	assert((void*)blk == request);
 
 	if (request == (void*) -1) {
-	    return NULL; // sbrk failed.
-	  }
+		return NULL; // sbrk failed.
+	}
 
-	  if (last) { // NULL on first request.
-	    last->next = blk;
-	  }
-	  blk->length = size;
-	  blk->next = NULL;
-	  blk->inUse = false;
-	  blk->address = 0x12345678;
+	if (last) { // NULL on first request.
+		last->next = blk;
+	}
+	blk->length = size;
+	blk->next = NULL;
+	blk->inUse = false;
+	blk->address = 0x12345678;
 
-	  return blk;
+	return blk;
 }
 
 //set a new policy
@@ -133,14 +133,14 @@ void *my_malloc(int size){
 	blocks *free;//list of free blocks
 
 	if(size <= 0){ // requesting no space?
-		return NULL; //TODO: set error
+		return my_malloc_error;
 	}
 
 	if(!global_base){
 
 		free = request_space(NULL,size);
 		if(!free){ // unable to allocate space
-			return NULL;//TODO: set error
+			return my_malloc_error;
 		}
 		global_base = free;
 	}
@@ -151,8 +151,7 @@ void *my_malloc(int size){
 		if(!free){
 			free = request_space(last,size);
 			if(!free){
-				//TODO: set error
-				return NULL; // space could not be allocated
+				return my_malloc_error;
 			}
 		}
 		else // free block found
@@ -168,22 +167,22 @@ void *my_malloc(int size){
 
 //to free blocks
 void my_free(void *ptr){
-	 if (!ptr) {
-	    return;//TODO: RETURN ERROR
-	  }
+	if (!ptr) {
+		return;
+	}
 
-	 blocks *blk = get_block_ptr(ptr);
+	blocks *blk = get_block_ptr(ptr);
 
 
-	 assert(blk->inUse == NULL);
-	 assert(blk->address == 0x77777777 || blk->address == 0x12345678);
-	 blk->inUse = false;
-	 blk->address = 0x55555555;// for testing
+	assert(blk->inUse == NULL);
+	assert(blk->address == 0x77777777 || blk->address == 0x12345678);
+	blk->inUse = false;
+	blk->address = 0x55555555;// for testing
 
-	 printf("\n memory freed");
-	 totalFree+= sizeof(*ptr);
+	printf("\n memory freed");
+	totalFree+= sizeof(*ptr);
 
-	 mergeBlocks(blk);// merges the blocks
+	mergeBlocks(blk);// merges the blocks
 
 }
 
@@ -193,11 +192,11 @@ void mergeBlocks(blocks *merge)
 	merge = global_base;//start from head
 
 	while(merge->next != NULL){
-		 if(merge->next->inUse == false && merge->inUse == false){
-			 merge->length+= merge->next->length;
-			 merge->next = merge->next->next;
-		 }
-	 }
+		if(merge->next->inUse == false && merge->inUse == false){
+			merge->length+= merge->next->length;
+			merge->next = merge->next->next;
+		}
+	}
 	largestCont+= sizeof(merge->length);
 
 }
@@ -212,8 +211,8 @@ void my_mallinfo(){
 // for testing
 int main()
 {
-	int *ptr_one,newPolicy;
-	void *ptr_two;
+	int *ptr_one,newPolicy,i;
+	char *ptr_two;
 
 	printf("\n press 0 to use best fit policy  ");
 	scanf("%i",&newPolicy);
@@ -225,17 +224,29 @@ int main()
 	ptr_one = (int *)my_malloc(sizeof(int));
 	ptr_two = (void *) my_malloc(400);
 
+	*ptr_one = 25;
+	printf("%d\n", *ptr_one);
+
+	my_free(ptr_one);
+	my_free(ptr_two);
+
+	printf("%d\n", *ptr_one);
+
+
+	for(i= 0; i < 200;i ++){
+		ptr_one = (int *)my_malloc(sizeof(i));
+		ptr_two = (char *)my_malloc(sizeof(char));
+		my_free(ptr_one);
+		my_free(ptr_two);
+	}
+
 	if (ptr_one == 0)
 	{
 		printf("ERROR: Out of memory\n");
 		return 1;
 	}
 
-	*ptr_one = 25;
-	printf("%d\n", *ptr_one);
 
-	my_free(ptr_one);
-	my_free(ptr_two);
 
 	my_mallinfo();
 
